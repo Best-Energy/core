@@ -9,8 +9,15 @@ contract P2PMarket {
         uint256 volume;
     }
 
+    struct Participant {
+        //Does the participant produce renewable energy?
+        bool renewable;
+        //Use for the mapping to check if the participant exists
+        bool isValue;
+    }
+
     address private owner;
-    mapping(address => bool) private participants;
+    mapping(address => Participant) private participants;
     Ask[] private asks;
 
     // event for EVM logging
@@ -28,7 +35,10 @@ contract P2PMarket {
     }
 
     modifier isParticipant() {
-        require(participants[msg.sender], "Caller is not network participant");
+        require(
+            participants[msg.sender].isValue,
+            "Caller is not network participant"
+        );
         _;
     }
 
@@ -58,28 +68,30 @@ contract P2PMarket {
     }
 
     function amParticipant() external view returns (bool) {
-        return participants[msg.sender];
+        return participants[msg.sender].isValue;
     }
 
-    function addParticipants(address[] calldata newParticipants)
+    function addParticipant(address publicKey, bool renewable)
         external
         isOwner
     {
-        for (uint256 i = 0; i < newParticipants.length; i++) {
-            participants[newParticipants[i]] = true;
-        }
+        participants[publicKey] = Participant(renewable, true);
+    }
+
+    function removeParticipant(address publicKey) external isOwner {
+        participants[publicKey].isValue = false;
     }
 
     function sendAsk(uint256 price, uint256 volume) external isParticipant {
         asks.push(Ask(msg.sender, price, volume));
     }
 
-    function getAsks() public view returns (Ask[] memory) {
+    function getAsks() external view returns (Ask[] memory) {
         return asks;
     }
 
     function buy(uint256 askIndex, uint256 volume)
-        public
+        external
         payable
         isParticipant
     {
