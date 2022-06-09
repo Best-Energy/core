@@ -9,6 +9,13 @@ contract P2PMarket {
         uint256 volume;
     }
 
+    struct Receipt {
+        address buyer;
+        address seller;
+        uint256 price;
+        uint256 amount;
+    }
+
     struct Participant {
         //Does the participant produce renewable energy?
         bool renewable;
@@ -19,9 +26,11 @@ contract P2PMarket {
     address private owner;
     mapping(address => Participant) private participants;
     Ask[] private asks;
+    Receipt[] private receipts;
 
     // event for EVM logging
     event OwnerSet(address indexed oldOwner, address indexed newOwner);
+    event ResetEvent();
 
     // modifier to check if caller is owner
     modifier isOwner() {
@@ -67,6 +76,14 @@ contract P2PMarket {
         return owner;
     }
 
+    function getParticipant(address adr)
+        external
+        view
+        returns (Participant memory)
+    {
+        return participants[adr];
+    }
+
     function amParticipant() external view returns (bool) {
         return participants[msg.sender].isValue;
     }
@@ -82,8 +99,19 @@ contract P2PMarket {
         participants[publicKey].isValue = false;
     }
 
-    function sendAsk(uint256 price, uint256 volume) external isParticipant {
+    function reset() external isOwner {
+        delete asks;
+        delete receipts;
+        emit ResetEvent();
+    }
+
+    function sendAsk(uint256 price, uint256 volume)
+        external
+        isParticipant
+        returns (uint256)
+    {
         asks.push(Ask(msg.sender, price, volume));
+        return asks.length - 1;
     }
 
     function getAsks() external view returns (Ask[] memory) {
@@ -99,7 +127,26 @@ contract P2PMarket {
         require(ask.volume >= volume, "Volume exceeds ask volume");
         uint256 totalPrice = ask.price * volume;
         require(totalPrice == msg.value, "Incorrect payment value");
+        receipts.push(Receipt(msg.sender, ask.seller, ask.price, volume));
         ask.volume -= volume;
         payable(ask.seller).transfer(msg.value);
+    }
+
+    function updateAskPrice(uint256 askIndex, uint256 price)
+        external
+        isParticipant
+    {
+        Ask storage ask = asks[askIndex];
+        require(ask.seller == msg.sender, "You are not the seller of this ask");
+        ask.price = price;
+    }
+
+    function updateAskVolume(uint256 askIndex, uint256 volume)
+        external
+        isParticipant
+    {
+        Ask storage ask = asks[askIndex];
+        require(ask.seller == msg.sender, "You are not the seller of this ask");
+        ask.volume = volume;
     }
 }
