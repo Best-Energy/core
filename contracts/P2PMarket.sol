@@ -52,6 +52,8 @@ contract P2PMarket {
     event AskBought(uint256 indexed receiptIndex);
     event ResetEvent();
     event StageChanged(Stage newStage);
+    event UsernameChanged(address indexed participant);
+    event AvatarUrlChanged(address indexed participant);
 
     modifier canAsk() {
         require(stage != Stage.INACTIVE, "Market is inactive");
@@ -232,5 +234,19 @@ contract P2PMarket {
         require(ask.seller == msg.sender, "You are not the seller of this ask");
         ask.volume = volume;
         emit AskVolumeUpdated(askIndex, volume);
+    }
+
+    function changeUsername(string memory username) external isParticipant {
+        participants[msg.sender].username = username;
+        emit UsernameChanged(msg.sender);
+    }
+
+    function changeAvatarUrl(string memory avatarUrl) external isParticipant {
+        participants[msg.sender].avatarUrl = avatarUrl;
+        emit AvatarUrlChanged(msg.sender);
+    }
+
+    function getReceipts() external view returns (Receipt[] memory) {
+        return receipts;
     }
 }
