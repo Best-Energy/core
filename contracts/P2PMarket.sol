@@ -7,6 +7,7 @@ contract P2PMarket {
         address seller;
         uint256 price;
         uint256 volume;
+        bool renewable;
     }
 
     struct Receipt {
@@ -17,12 +18,25 @@ contract P2PMarket {
     }
 
     struct Participant {
+        string username;
+        string avatarUrl;
+        uint256 energyBought;
+        uint256 energySold;
+        uint256 renewablesBought;
+        uint256 renewablesSold;
         //Does the participant produce renewable energy?
         bool renewable;
         //Use for the mapping to check if the participant exists
         bool isValue;
     }
 
+    enum Stage {
+        ASK,
+        BUY,
+        INACTIVE
+    }
+
+    Stage stage = Stage.INACTIVE;
     address private owner;
     mapping(address => Participant) private participants;
     Ask[] private asks;
@@ -30,7 +44,24 @@ contract P2PMarket {
 
     // event for EVM logging
     event OwnerSet(address indexed oldOwner, address indexed newOwner);
+    event ParticipantAdded(address indexed participant);
+    event ParticipantRemoved(address indexed participant);
+    event AskAdded(uint256 indexed askIndex);
+    event AskPriceUpdated(uint256 indexed askIndex, uint256 newPrice);
+    event AskVolumeUpdated(uint256 indexed askIndex, uint256 newVolume);
+    event AskBought(uint256 indexed receiptIndex);
     event ResetEvent();
+    event StageChanged(Stage newStage);
+
+    modifier canAsk() {
+        require(stage != Stage.INACTIVE, "Market is inactive");
+        _;
+    }
+
+    modifier canBuy() {
+        require(stage == Stage.BUY, "Market is not in buy stage");
+        _;
+    }
 
     // modifier to check if caller is owner
     modifier isOwner() {
@@ -60,12 +91,27 @@ contract P2PMarket {
     }
 
     /**
+     * @dev Set current stage of the market
+     */
+    function setStage(Stage _stage) public isOwner {
+        stage = _stage;
+        emit StageChanged(stage);
+    }
+
+    /**
+     * @dev Get current stage of the market
+     */
+    function getStage() public view returns (Stage) {
+        return stage;
+    }
+
+    /**
      * @dev Change owner
      * @param newOwner address of new owner
      */
     function changeOwner(address newOwner) public isOwner {
-        emit OwnerSet(owner, newOwner);
         owner = newOwner;
+        emit OwnerSet(owner, newOwner);
     }
 
     /**
@@ -88,30 +134,54 @@ contract P2PMarket {
         return participants[msg.sender].isValue;
     }
 
-    function addParticipant(address publicKey, bool renewable)
-        external
-        isOwner
-    {
-        participants[publicKey] = Participant(renewable, true);
+    function addParticipant(
+        string memory username,
+        string memory avatarUrl,
+        address publicKey,
+        bool renewable
+    ) external isOwner {
+        participants[publicKey] = Participant(
+            username,
+            avatarUrl,
+            0,
+            0,
+            0,
+            0,
+            renewable,
+            true
+        );
+        emit ParticipantAdded(publicKey);
     }
 
     function removeParticipant(address publicKey) external isOwner {
         participants[publicKey].isValue = false;
+        emit ParticipantRemoved(publicKey);
     }
 
     function reset() external isOwner {
         delete asks;
         delete receipts;
+        stage = Stage.ASK;
         emit ResetEvent();
+        emit StageChanged(Stage.ASK);
     }
 
     function sendAsk(uint256 price, uint256 volume)
         external
         isParticipant
+        canAsk
         returns (uint256)
     {
-        asks.push(Ask(msg.sender, price, volume));
-        return asks.length - 1;
+        asks.push(
+            Ask(msg.sender, price, volume, participants[msg.sender].renewable)
+        );
+        uint256 askIndex = asks.length - 1;
+        emit AskAdded(askIndex);
+        return askIndex;
+    }
+
+    function getAsk(uint256 askIndex) external view returns (Ask memory) {
+        return asks[askIndex];
     }
 
     function getAsks() external view returns (Ask[] memory) {
@@ -122,31 +192,45 @@ contract P2PMarket {
         external
         payable
         isParticipant
+        canBuy
     {
         Ask storage ask = asks[askIndex];
         require(ask.volume >= volume, "Volume exceeds ask volume");
         uint256 totalPrice = ask.price * volume;
         require(totalPrice == msg.value, "Incorrect payment value");
-        receipts.push(Receipt(msg.sender, ask.seller, ask.price, volume));
         ask.volume -= volume;
         payable(ask.seller).transfer(msg.value);
+
+        participants[msg.sender].energyBought += volume;
+        participants[ask.seller].energySold += volume;
+        if (ask.renewable) {
+            participants[msg.sender].renewablesBought += volume;
+            participants[ask.seller].renewablesSold += volume;
+        }
+
+        receipts.push(Receipt(msg.sender, ask.seller, ask.price, volume));
+        emit AskBought(receipts.length - 1);
     }
 
     function updateAskPrice(uint256 askIndex, uint256 price)
         external
         isParticipant
+        canAsk
     {
         Ask storage ask = asks[askIndex];
         require(ask.seller == msg.sender, "You are not the seller of this ask");
         ask.price = price;
+        emit AskPriceUpdated(askIndex, price);
     }
 
     function updateAskVolume(uint256 askIndex, uint256 volume)
         external
         isParticipant
+        canAsk
     {
         Ask storage ask = asks[askIndex];
         require(ask.seller == msg.sender, "You are not the seller of this ask");
         ask.volume = volume;
+        emit AskVolumeUpdated(askIndex, volume);
     }
 }
