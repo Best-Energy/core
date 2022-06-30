@@ -2,7 +2,10 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 
-contract P2PMarket {
+import "./IMarket.sol";
+import "./MarketUpkeep.sol";
+
+contract P2PMarket is IMarket {
     struct Ask {
         address seller;
         uint256 price;
@@ -30,13 +33,9 @@ contract P2PMarket {
         bool isValue;
     }
 
-    enum Stage {
-        ASK,
-        BUY,
-        INACTIVE
-    }
+    MarketUpkeep upkeeper;
 
-    Stage stage = Stage.INACTIVE;
+    IMarket.Stage stage = IMarket.Stage.INACTIVE;
     address private owner;
     mapping(address => Participant) private participants;
     Ask[] private asks;
@@ -51,28 +50,29 @@ contract P2PMarket {
     event AskVolumeUpdated(uint256 indexed askIndex, uint256 newVolume);
     event AskBought(uint256 indexed receiptIndex);
     event ResetEvent();
-    event StageChanged(Stage newStage);
+    event StageChanged(IMarket.Stage newStage);
     event UsernameChanged(address indexed participant);
     event AvatarUrlChanged(address indexed participant);
+    event Keeper(address keeper);
 
     modifier canAsk() {
-        require(stage != Stage.INACTIVE, "Market is inactive");
+        require(stage != IMarket.Stage.INACTIVE, "Market is inactive");
         _;
     }
 
     modifier canBuy() {
-        require(stage == Stage.BUY, "Market is not in buy stage");
+        require(stage == IMarket.Stage.BUY, "Market is not in buy stage");
         _;
     }
 
     // modifier to check if caller is owner
     modifier isOwner() {
-        // If the first argument of 'require' evaluates to 'false', execution terminates and all
-        // changes to the state and to Ether balances are reverted.
-        // This used to consume all gas in old EVM versions, but not anymore.
-        // It is often a good idea to use 'require' to check if functions are called correctly.
-        // As a second argument, you can also provide an explanation about what went wrong.
         require(msg.sender == owner, "Caller is not owner");
+        _;
+    }
+
+    modifier isUpkeeper() {
+        require(msg.sender == address(upkeeper), "Caller is not upkeeper");
         _;
     }
 
@@ -88,14 +88,16 @@ contract P2PMarket {
      * @dev Set contract deployer as owner
      */
     constructor() {
-        owner = msg.sender; // 'msg.sender' is sender of current call, contract deployer for a constructor
+        owner = msg.sender;
+        upkeeper = new MarketUpkeep(address(this), stage);
         emit OwnerSet(address(0), owner);
+        emit Keeper(address(upkeeper));
     }
 
     /**
      * @dev Set current stage of the market
      */
-    function setStage(Stage _stage) public isOwner {
+    function setStage(IMarket.Stage _stage) public isUpkeeper {
         stage = _stage;
         emit StageChanged(stage);
     }
@@ -103,7 +105,7 @@ contract P2PMarket {
     /**
      * @dev Get current stage of the market
      */
-    function getStage() public view returns (Stage) {
+    function getStage() public view returns (IMarket.Stage) {
         return stage;
     }
 
@@ -160,12 +162,12 @@ contract P2PMarket {
         emit ParticipantRemoved(publicKey);
     }
 
-    function reset() external isOwner {
+    function reset() external isUpkeeper {
         delete asks;
         delete receipts;
-        stage = Stage.ASK;
+        stage = IMarket.Stage.ASK;
         emit ResetEvent();
-        emit StageChanged(Stage.ASK);
+        emit StageChanged(IMarket.Stage.ASK);
     }
 
     function sendAsk(uint256 price, uint256 volume)
