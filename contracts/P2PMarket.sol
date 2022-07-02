@@ -35,7 +35,7 @@ contract P2PMarket is IMarket {
 
     MarketUpkeep upkeeper;
 
-    IMarket.Stage stage = IMarket.Stage.INACTIVE;
+    Stage stage = Stage.INACTIVE;
     address private owner;
     mapping(address => Participant) private participants;
     Ask[] private asks;
@@ -50,18 +50,18 @@ contract P2PMarket is IMarket {
     event AskVolumeUpdated(uint256 indexed askIndex, uint256 newVolume);
     event AskBought(uint256 indexed receiptIndex);
     event ResetEvent();
-    event StageChanged(IMarket.Stage newStage);
+    event StageChanged(Stage newStage);
     event UsernameChanged(address indexed participant);
     event AvatarUrlChanged(address indexed participant);
     event Keeper(address keeper);
 
     modifier canAsk() {
-        require(stage != IMarket.Stage.INACTIVE, "Market is inactive");
+        require(stage != Stage.INACTIVE, "Market is inactive");
         _;
     }
 
     modifier canBuy() {
-        require(stage == IMarket.Stage.BUY, "Market is not in buy stage");
+        require(stage == Stage.BUY, "Market is not in buy stage");
         _;
     }
 
@@ -97,7 +97,7 @@ contract P2PMarket is IMarket {
     /**
      * @dev Set current stage of the market
      */
-    function setStage(IMarket.Stage _stage) public isUpkeeper {
+    function setStage(Stage _stage) public isUpkeeper {
         stage = _stage;
         emit StageChanged(stage);
     }
@@ -105,7 +105,7 @@ contract P2PMarket is IMarket {
     /**
      * @dev Get current stage of the market
      */
-    function getStage() public view returns (IMarket.Stage) {
+    function getStage() public view returns (Stage) {
         return stage;
     }
 
@@ -165,9 +165,9 @@ contract P2PMarket is IMarket {
     function reset() external isUpkeeper {
         delete asks;
         delete receipts;
-        stage = IMarket.Stage.ASK;
+        stage = Stage.ASK;
         emit ResetEvent();
-        emit StageChanged(IMarket.Stage.ASK);
+        emit StageChanged(Stage.ASK);
     }
 
     function sendAsk(uint256 price, uint256 volume)
