@@ -2,9 +2,6 @@
 pragma solidity >=0.7.0 <0.9.0;
 
 interface IMarket {
-    // Declare here every function which you want to invoke
-    // from other contracts (i.e., not from the off-chain).
-
     enum Stage {
         ASK,
         BUY,
@@ -16,4 +13,6 @@ interface IMarket {
     function getStage() external view returns (Stage);
 
     function reset() external;
+
+    function setMarketPrice(uint256 _price) external;
 }

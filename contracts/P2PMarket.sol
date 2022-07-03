@@ -40,6 +40,8 @@ contract P2PMarket is IMarket {
     mapping(address => Participant) private participants;
     Ask[] private asks;
     Receipt[] private receipts;
+    //Market Price used for collateral calculation
+    uint256 private marketPrice;
 
     // event for EVM logging
     event OwnerSet(address indexed oldOwner, address indexed newOwner);
@@ -250,5 +252,13 @@ contract P2PMarket is IMarket {
 
     function getReceipts() external view returns (Receipt[] memory) {
         return receipts;
+    }
+
+    function getMarketPrice() external view returns (uint256) {
+        return marketPrice;
+    }
+
+    function setMarketPrice(uint256 _price) external isUpkeeper {
+        marketPrice = _price;
     }
 }
