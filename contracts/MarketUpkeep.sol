@@ -102,6 +102,7 @@ contract MarketUpkeep is KeeperCompatibleInterface, ChainlinkClient {
         } else if (stage == IMarket.Stage.BUY) {
             market.setStage(IMarket.Stage.INACTIVE);
             interval = timeInactiveToAsk;
+            requestPrice();
         } else {
             market.reset();
             interval = timeAskToBuy;

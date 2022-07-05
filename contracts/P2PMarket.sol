@@ -11,6 +11,7 @@ contract P2PMarket is IMarket {
         uint256 price;
         uint256 volume;
         bool renewable;
+        uint256 collateral;
     }
 
     struct Receipt {
@@ -18,6 +19,7 @@ contract P2PMarket is IMarket {
         address seller;
         uint256 price;
         uint256 amount;
+        uint256 collateral;
     }
 
     struct Participant {
@@ -165,6 +167,11 @@ contract P2PMarket is IMarket {
     }
 
     function reset() external isUpkeeper {
+        Ask[] memory remainingAsks = asks;
+        for (uint256 i = 0; i < remainingAsks.length - 1; i++) {
+            Ask memory ask = remainingAsks[i];
+            payable(ask.seller).transfer(ask.collateral);
+        }
         delete asks;
         delete receipts;
         stage = Stage.ASK;
@@ -174,16 +181,29 @@ contract P2PMarket is IMarket {
 
     function sendAsk(uint256 price, uint256 volume)
         external
+        payable
         isParticipant
         canAsk
         returns (uint256)
     {
+        uint256 collateral = calculateCollateral(volume);
+        require(msg.value == collateral, "Insufficient collateral");
         asks.push(
-            Ask(msg.sender, price, volume, participants[msg.sender].renewable)
+            Ask(
+                msg.sender,
+                price,
+                volume,
+                participants[msg.sender].renewable,
+                collateral
+            )
         );
         uint256 askIndex = asks.length - 1;
         emit AskAdded(askIndex);
         return askIndex;
+    }
+
+    function calculateCollateral(uint256 volume) public view returns (uint256) {
+        return volume * marketPrice;
     }
 
     function getAsk(uint256 askIndex) external view returns (Ask memory) {
@@ -204,8 +224,9 @@ contract P2PMarket is IMarket {
         require(ask.volume >= volume, "Volume exceeds ask volume");
         uint256 totalPrice = ask.price * volume;
         require(totalPrice == msg.value, "Incorrect payment value");
+        uint256 collateral = calculateCollateral(volume);
         ask.volume -= volume;
-        payable(ask.seller).transfer(msg.value);
+        ask.collateral -= collateral;
 
         participants[msg.sender].energyBought += volume;
         participants[ask.seller].energySold += volume;
@@ -214,7 +235,10 @@ contract P2PMarket is IMarket {
             participants[ask.seller].renewablesSold += volume;
         }
 
-        receipts.push(Receipt(msg.sender, ask.seller, ask.price, volume));
+        receipts.push(
+            Receipt(msg.sender, ask.seller, ask.price, volume, collateral)
+        );
+        payable(ask.seller).transfer(msg.value);
         emit AskBought(receipts.length - 1);
     }
 
@@ -229,15 +253,32 @@ contract P2PMarket is IMarket {
         emit AskPriceUpdated(askIndex, price);
     }
 
-    function updateAskVolume(uint256 askIndex, uint256 volume)
+    function decreaseAskVolume(uint256 askIndex, uint256 volume)
         external
         isParticipant
         canAsk
     {
         Ask storage ask = asks[askIndex];
         require(ask.seller == msg.sender, "You are not the seller of this ask");
-        ask.volume = volume;
+        uint256 collateral = calculateCollateral(volume);
+        ask.volume -= volume;
+        ask.collateral -= collateral;
+        payable(msg.sender).transfer(collateral);
         emit AskVolumeUpdated(askIndex, volume);
+    }
+
+    function increaseAskVolume(uint256 askIndex, uint256 volume)
+        external
+        payable
+        isParticipant
+        canAsk
+    {
+        Ask storage ask = asks[askIndex];
+        require(ask.seller == msg.sender, "You are not the seller of this ask");
+        uint256 collateral = calculateCollateral(volume);
+        require(msg.value == collateral, "Insufficient collateral");
+        ask.volume += volume;
+        ask.collateral += collateral;
     }
 
     function changeUsername(string memory username) external isParticipant {
@@ -260,5 +301,9 @@ contract P2PMarket is IMarket {
 
     function setMarketPrice(uint256 _price) external isUpkeeper {
         marketPrice = _price;
+    }
+
+    function getAsksCount() external view returns (uint256) {
+        return asks.length;
     }
 }
