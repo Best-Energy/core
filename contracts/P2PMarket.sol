@@ -4,6 +4,7 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "./IMarket.sol";
 import "./MarketUpkeep.sol";
+import "./CollateralOracle.sol";
 
 contract P2PMarket is IMarket {
     struct Ask {
@@ -36,6 +37,7 @@ contract P2PMarket is IMarket {
     }
 
     MarketUpkeep public upkeeper;
+    CollateralOracle public collateralOracle;
 
     Stage stage = Stage.INACTIVE;
     address private owner;
@@ -61,6 +63,11 @@ contract P2PMarket is IMarket {
     event UsernameChanged(address indexed participant);
     event AvatarUrlChanged(address indexed participant);
     event Keeper(address keeper);
+    event DepositDeducted(
+        address indexed participant,
+        uint256 amountDeducted,
+        uint256 volumeNotDelivered
+    );
 
     modifier canAsk() {
         require(stage != Stage.INACTIVE, "Market is inactive");
@@ -91,12 +98,21 @@ contract P2PMarket is IMarket {
         _;
     }
 
+    modifier onlyCollateralOracle() {
+        require(
+            msg.sender == address(collateralOracle),
+            "Only Collateral Oracle can call this function"
+        );
+        _;
+    }
+
     /**
      * @dev Set contract deployer as owner
      */
     constructor() {
         owner = msg.sender;
         upkeeper = new MarketUpkeep(address(this), stage);
+        collateralOracle = new CollateralOracle(address(this));
         emit OwnerSet(address(0), owner);
         emit Keeper(address(upkeeper));
     }
@@ -323,11 +339,30 @@ contract P2PMarket is IMarket {
         return marketPrice;
     }
 
-    function setMarketPrice(uint256 _price) external override isUpkeeper {
+    function setMarketPrice(uint256 _price)
+        external
+        override
+        onlyCollateralOracle
+    {
         marketPrice = _price;
     }
 
     function getAsksCount() external view returns (uint256) {
         return asks.length;
+    }
+
+    function oracleDeductDeposit(
+        address participant,
+        uint256 amountDeducted,
+        uint256 volumeNotDelivered
+    ) external override onlyCollateralOracle {
+        Participant storage p = participants[participant];
+        require(
+            p.deposit >= amountDeducted,
+            "The participant doesn't have enough deposited"
+        );
+
+        p.deposit -= amountDeducted;
+        emit DepositDeducted(participant, amountDeducted, volumeNotDelivered);
     }
 }

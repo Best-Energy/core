@@ -16,4 +16,10 @@ interface IMarket {
     function reset() external;
 
     function setMarketPrice(uint256 _price) external;
+
+    function oracleDeductDeposit(
+        address participant,
+        uint256 amountDeducted,
+        uint256 volumeNotDelivered
+    ) external;
 }
