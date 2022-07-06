@@ -286,6 +286,10 @@ contract P2PMarket is IMarket {
     {
         Ask storage ask = asks[askIndex];
         require(ask.seller == msg.sender, "You are not the seller of this ask");
+        require(
+            ask.volume >= volume,
+            "Cannot decrease volume more than current volume"
+        );
         ask.volume -= volume;
         emit AskVolumeUpdated(askIndex, ask.volume);
     }
