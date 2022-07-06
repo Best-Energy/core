@@ -11,7 +11,6 @@ contract P2PMarket is IMarket {
         uint256 price;
         uint256 volume;
         bool renewable;
-        uint256 collateral;
     }
 
     struct Receipt {
@@ -29,6 +28,7 @@ contract P2PMarket is IMarket {
         uint256 energySold;
         uint256 renewablesBought;
         uint256 renewablesSold;
+        uint256 deposit;
         //Does the participant produce renewable energy?
         bool renewable;
         //Use for the mapping to check if the participant exists
@@ -155,6 +155,7 @@ contract P2PMarket is IMarket {
             0,
             0,
             0,
+            0,
             renewable,
             true
         );
@@ -166,12 +167,25 @@ contract P2PMarket is IMarket {
         emit ParticipantRemoved(publicKey);
     }
 
+    function fundDeposit() external payable isParticipant {
+        participants[msg.sender].deposit += msg.value;
+    }
+
+    function withdraw(uint256 amount) external isParticipant {
+        require(
+            stage == Stage.INACTIVE,
+            "You can't withdraw if not on the inactive stage"
+        );
+        Participant storage participant = participants[msg.sender];
+        require(
+            participant.deposit >= amount,
+            "You can't withdraw more than deposit"
+        );
+        participant.deposit -= amount;
+        payable(msg.sender).transfer(amount);
+    }
+
     function reset() external isUpkeeper {
-        Ask[] memory remainingAsks = asks;
-        for (uint256 i = 0; i < remainingAsks.length - 1; i++) {
-            Ask memory ask = remainingAsks[i];
-            payable(ask.seller).transfer(ask.collateral);
-        }
         delete asks;
         delete receipts;
         stage = Stage.ASK;
@@ -187,15 +201,12 @@ contract P2PMarket is IMarket {
         returns (uint256)
     {
         uint256 collateral = calculateCollateral(volume);
-        require(msg.value == collateral, "Insufficient collateral");
+        require(
+            participants[msg.sender].deposit >= collateral,
+            "Insufficient collateral"
+        );
         asks.push(
-            Ask(
-                msg.sender,
-                price,
-                volume,
-                participants[msg.sender].renewable,
-                collateral
-            )
+            Ask(msg.sender, price, volume, participants[msg.sender].renewable)
         );
         uint256 askIndex = asks.length - 1;
         emit AskAdded(askIndex);
@@ -226,8 +237,6 @@ contract P2PMarket is IMarket {
         require(totalPrice == msg.value, "Incorrect payment value");
         uint256 collateral = calculateCollateral(volume);
         ask.volume -= volume;
-        ask.collateral -= collateral;
-
         participants[msg.sender].energyBought += volume;
         participants[ask.seller].energySold += volume;
         if (ask.renewable) {
@@ -253,6 +262,23 @@ contract P2PMarket is IMarket {
         emit AskPriceUpdated(askIndex, price);
     }
 
+    function increaseAskVolume(uint256 askIndex, uint256 volume)
+        external
+        isParticipant
+        canAsk
+    {
+        Ask storage ask = asks[askIndex];
+        require(ask.seller == msg.sender, "You are not the seller of this ask");
+        uint256 newVolume = ask.volume + volume;
+        uint256 collateral = calculateCollateral(newVolume);
+        require(
+            participants[msg.sender].deposit >= collateral,
+            "Insufficient collateral"
+        );
+        ask.volume = newVolume;
+        emit AskVolumeUpdated(askIndex, ask.volume);
+    }
+
     function decreaseAskVolume(uint256 askIndex, uint256 volume)
         external
         isParticipant
@@ -260,25 +286,8 @@ contract P2PMarket is IMarket {
     {
         Ask storage ask = asks[askIndex];
         require(ask.seller == msg.sender, "You are not the seller of this ask");
-        uint256 collateral = calculateCollateral(volume);
         ask.volume -= volume;
-        ask.collateral -= collateral;
-        payable(msg.sender).transfer(collateral);
-        emit AskVolumeUpdated(askIndex, volume);
-    }
-
-    function increaseAskVolume(uint256 askIndex, uint256 volume)
-        external
-        payable
-        isParticipant
-        canAsk
-    {
-        Ask storage ask = asks[askIndex];
-        require(ask.seller == msg.sender, "You are not the seller of this ask");
-        uint256 collateral = calculateCollateral(volume);
-        require(msg.value == collateral, "Insufficient collateral");
-        ask.volume += volume;
-        ask.collateral += collateral;
+        emit AskVolumeUpdated(askIndex, ask.volume);
     }
 
     function changeUsername(string memory username) external isParticipant {

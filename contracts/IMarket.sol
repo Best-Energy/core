@@ -5,6 +5,7 @@ interface IMarket {
     enum Stage {
         ASK,
         BUY,
+        SETTELMENT,
         INACTIVE
     }
 
