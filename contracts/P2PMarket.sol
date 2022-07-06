@@ -5,6 +5,7 @@ pragma solidity >=0.7.0 <0.9.0;
 import "./IMarket.sol";
 import "./MarketUpkeep.sol";
 import "./CollateralOracle.sol";
+import "./IdentityOracle.sol";
 
 contract P2PMarket is IMarket {
     struct Ask {
@@ -40,6 +41,7 @@ contract P2PMarket is IMarket {
 
     MarketUpkeep public upkeeper;
     CollateralOracle public collateralOracle;
+    IdentityOracle public identityOracle;
 
     Stage stage = Stage.INACTIVE;
     address private owner;
@@ -108,6 +110,14 @@ contract P2PMarket is IMarket {
         _;
     }
 
+    modifier onlyIdentityOracle() {
+        require(
+            msg.sender == address(identityOracle),
+            "Only Identity Oracle can call this function"
+        );
+        _;
+    }
+
     /**
      * @dev Set contract deployer as owner
      */
@@ -115,6 +125,7 @@ contract P2PMarket is IMarket {
         owner = msg.sender;
         upkeeper = new MarketUpkeep(address(this), stage);
         collateralOracle = new CollateralOracle(address(this), msg.sender);
+        identityOracle = new IdentityOracle(address(this), msg.sender);
         emit OwnerSet(address(0), owner);
         emit Keeper(address(upkeeper));
     }
@@ -169,7 +180,8 @@ contract P2PMarket is IMarket {
 
     function approveParticipant(address publicKey, uint8 locationGroup)
         external
-        isOwner
+        override
+        onlyIdentityOracle
     {
         require(
             participants[publicKey].isApproved == false,
@@ -180,8 +192,8 @@ contract P2PMarket is IMarket {
         emit ParticipantApproved(publicKey);
     }
 
-    function removeParticipant(address publicKey) external isOwner {
-        participants[publicKey].isValue = false;
+    function retractApproval(address publicKey) external override isOwner {
+        participants[publicKey].isApproved = false;
         emit ParticipantRemoved(publicKey);
     }
 

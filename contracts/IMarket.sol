@@ -22,4 +22,9 @@ interface IMarket {
         uint256 amountDeducted,
         uint256 volumeNotDelivered
     ) external;
+
+    function approveParticipant(address publicKey, uint8 locationGroup)
+        external;
+
+    function retractApproval(address publicKey) external;
 }
