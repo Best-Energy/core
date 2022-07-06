@@ -101,7 +101,7 @@ contract P2PMarket is IMarket {
     /**
      * @dev Set current stage of the market
      */
-    function setStage(Stage _stage) public isUpkeeper {
+    function setStage(Stage _stage) public override isUpkeeper {
         stage = _stage;
         emit StageChanged(stage);
     }
@@ -109,7 +109,7 @@ contract P2PMarket is IMarket {
     /**
      * @dev Get current stage of the market
      */
-    function getStage() public view returns (Stage) {
+    function getStage() public view override returns (Stage) {
         return stage;
     }
 
@@ -185,7 +185,7 @@ contract P2PMarket is IMarket {
         payable(msg.sender).transfer(amount);
     }
 
-    function reset() external isUpkeeper {
+    function reset() external override isUpkeeper {
         delete asks;
         delete receipts;
         stage = Stage.ASK;
@@ -312,7 +312,7 @@ contract P2PMarket is IMarket {
         return marketPrice;
     }
 
-    function setMarketPrice(uint256 _price) external isUpkeeper {
+    function setMarketPrice(uint256 _price) external override isUpkeeper {
         marketPrice = _price;
     }
 
