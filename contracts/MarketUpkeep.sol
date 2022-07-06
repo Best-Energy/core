@@ -39,7 +39,7 @@ contract MarketUpkeep is KeeperCompatibleInterface {
     ) external override {
         //We highly recommend revalidating the upkeep in the performUpkeep function
         require(
-            (block.timestamp - lastTimeStamp) < interval,
+            (block.timestamp - lastTimeStamp) > interval,
             "Not ready for upkeep"
         );
 
