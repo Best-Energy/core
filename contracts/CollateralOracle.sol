@@ -7,8 +7,9 @@ contract CollateralOracle {
     address public administrator;
     IMarket market;
 
-    constructor(address _market) {
+    constructor(address _market, address admin) {
         market = IMarket(_market);
+        administrator = admin;
     }
 
     event OracleInvoked();
