@@ -35,13 +35,16 @@ contract P2PMarket is IMarket {
         bool isValue;
     }
 
-    MarketUpkeep upkeeper;
+    MarketUpkeep public upkeeper;
 
     Stage stage = Stage.INACTIVE;
     address private owner;
     mapping(address => Participant) private participants;
     Ask[] private asks;
     Receipt[] private receipts;
+    uint256 iteration = 0;
+    mapping(uint256 => mapping(address => bool)) private hasAsk;
+    mapping(uint256 => mapping(address => uint256)) private askIndicies;
     //Market Price used for collateral calculation
     uint256 private marketPrice;
 
@@ -189,17 +192,21 @@ contract P2PMarket is IMarket {
         delete asks;
         delete receipts;
         stage = Stage.ASK;
+        iteration++;
         emit ResetEvent();
         emit StageChanged(Stage.ASK);
     }
 
     function sendAsk(uint256 price, uint256 volume)
         external
-        payable
         isParticipant
         canAsk
         returns (uint256)
     {
+        require(
+            hasAsk[iteration][msg.sender] == false,
+            "Participant already has an ask active."
+        );
         uint256 collateral = calculateCollateral(volume);
         require(
             participants[msg.sender].deposit >= collateral,
@@ -209,12 +216,20 @@ contract P2PMarket is IMarket {
             Ask(msg.sender, price, volume, participants[msg.sender].renewable)
         );
         uint256 askIndex = asks.length - 1;
+        hasAsk[iteration][msg.sender] == true;
+        askIndicies[iteration][msg.sender] = askIndex;
         emit AskAdded(askIndex);
         return askIndex;
     }
 
     function calculateCollateral(uint256 volume) public view returns (uint256) {
         return volume * marketPrice;
+    }
+
+    function getOwnAsk() external view returns (Ask memory) {
+        require(hasAsk[iteration][msg.sender], "You don't have an ask active");
+        uint256 askIndex = askIndicies[iteration][msg.sender];
+        return asks[askIndex];
     }
 
     function getAsk(uint256 askIndex) external view returns (Ask memory) {
@@ -262,11 +277,9 @@ contract P2PMarket is IMarket {
         emit AskPriceUpdated(askIndex, price);
     }
 
-    function increaseAskVolume(uint256 askIndex, uint256 volume)
-        external
-        isParticipant
-        canAsk
-    {
+    function increaseAskVolume(uint256 volume) external isParticipant canAsk {
+        require(hasAsk[iteration][msg.sender], "You don't have an ask active");
+        uint256 askIndex = askIndicies[iteration][msg.sender];
         Ask storage ask = asks[askIndex];
         require(ask.seller == msg.sender, "You are not the seller of this ask");
         uint256 newVolume = ask.volume + volume;
@@ -279,11 +292,9 @@ contract P2PMarket is IMarket {
         emit AskVolumeUpdated(askIndex, ask.volume);
     }
 
-    function decreaseAskVolume(uint256 askIndex, uint256 volume)
-        external
-        isParticipant
-        canAsk
-    {
+    function decreaseAskVolume(uint256 volume) external isParticipant canAsk {
+        require(hasAsk[iteration][msg.sender], "You don't have an ask active");
+        uint256 askIndex = askIndicies[iteration][msg.sender];
         Ask storage ask = asks[askIndex];
         require(ask.seller == msg.sender, "You are not the seller of this ask");
         require(
