@@ -34,6 +34,8 @@ contract P2PMarket is IMarket {
         bool renewable;
         //Use for the mapping to check if the participant exists
         bool isValue;
+        bool isApproved;
+        uint8 locationGroup;
     }
 
     MarketUpkeep public upkeeper;
@@ -52,7 +54,7 @@ contract P2PMarket is IMarket {
 
     // event for EVM logging
     event OwnerSet(address indexed oldOwner, address indexed newOwner);
-    event ParticipantAdded(address indexed participant);
+    event ParticipantApproved(address indexed participant);
     event ParticipantRemoved(address indexed participant);
     event AskAdded(uint256 indexed askIndex);
     event AskPriceUpdated(uint256 indexed askIndex, uint256 newPrice);
@@ -90,9 +92,9 @@ contract P2PMarket is IMarket {
         _;
     }
 
-    modifier isParticipant() {
+    modifier isApproved() {
         require(
-            participants[msg.sender].isValue,
+            participants[msg.sender].isApproved,
             "Caller is not network participant"
         );
         _;
@@ -112,7 +114,7 @@ contract P2PMarket is IMarket {
     constructor() {
         owner = msg.sender;
         upkeeper = new MarketUpkeep(address(this), stage);
-        collateralOracle = new CollateralOracle(address(this));
+        collateralOracle = new CollateralOracle(address(this), msg.sender);
         emit OwnerSet(address(0), owner);
         emit Keeper(address(upkeeper));
     }
@@ -141,14 +143,6 @@ contract P2PMarket is IMarket {
         emit OwnerSet(owner, newOwner);
     }
 
-    /**
-     * @dev Return owner address
-     * @return address of owner
-     */
-    function getOwner() external view returns (address) {
-        return owner;
-    }
-
     function getParticipant(address adr)
         external
         view
@@ -161,24 +155,29 @@ contract P2PMarket is IMarket {
         return participants[msg.sender].isValue;
     }
 
-    function addParticipant(
+    function register(
         string memory username,
         string memory avatarUrl,
-        address publicKey,
         bool renewable
-    ) external isOwner {
-        participants[publicKey] = Participant(
-            username,
-            avatarUrl,
-            0,
-            0,
-            0,
-            0,
-            0,
-            renewable,
-            true
+    ) external {
+        Participant storage participant = participants[msg.sender];
+        require(participant.isValue == false, "You are already registered");
+        participant.username = username;
+        participant.avatarUrl = avatarUrl;
+        participant.renewable = renewable;
+    }
+
+    function approveParticipant(address publicKey, uint8 locationGroup)
+        external
+        isOwner
+    {
+        require(
+            participants[publicKey].isApproved == false,
+            "User is already approved"
         );
-        emit ParticipantAdded(publicKey);
+        participants[publicKey].isApproved = true;
+        participants[publicKey].locationGroup = locationGroup;
+        emit ParticipantApproved(publicKey);
     }
 
     function removeParticipant(address publicKey) external isOwner {
@@ -186,11 +185,11 @@ contract P2PMarket is IMarket {
         emit ParticipantRemoved(publicKey);
     }
 
-    function fundDeposit() external payable isParticipant {
+    function fundDeposit() external payable isApproved {
         participants[msg.sender].deposit += msg.value;
     }
 
-    function withdraw(uint256 amount) external isParticipant {
+    function withdraw(uint256 amount) external isApproved {
         require(
             stage == Stage.INACTIVE,
             "You can't withdraw if not on the inactive stage"
@@ -215,7 +214,7 @@ contract P2PMarket is IMarket {
 
     function sendAsk(uint256 price, uint256 volume)
         external
-        isParticipant
+        isApproved
         canAsk
         returns (uint256)
     {
@@ -259,7 +258,7 @@ contract P2PMarket is IMarket {
     function buy(uint256 askIndex, uint256 volume)
         external
         payable
-        isParticipant
+        isApproved
         canBuy
     {
         Ask storage ask = asks[askIndex];
@@ -284,7 +283,7 @@ contract P2PMarket is IMarket {
 
     function updateAskPrice(uint256 askIndex, uint256 price)
         external
-        isParticipant
+        isApproved
         canAsk
     {
         Ask storage ask = asks[askIndex];
@@ -293,7 +292,7 @@ contract P2PMarket is IMarket {
         emit AskPriceUpdated(askIndex, price);
     }
 
-    function increaseAskVolume(uint256 volume) external isParticipant canAsk {
+    function increaseAskVolume(uint256 volume) external isApproved canAsk {
         require(hasAsk[iteration][msg.sender], "You don't have an ask active");
         uint256 askIndex = askIndicies[iteration][msg.sender];
         Ask storage ask = asks[askIndex];
@@ -308,7 +307,7 @@ contract P2PMarket is IMarket {
         emit AskVolumeUpdated(askIndex, ask.volume);
     }
 
-    function decreaseAskVolume(uint256 volume) external isParticipant canAsk {
+    function decreaseAskVolume(uint256 volume) external isApproved canAsk {
         require(hasAsk[iteration][msg.sender], "You don't have an ask active");
         uint256 askIndex = askIndicies[iteration][msg.sender];
         Ask storage ask = asks[askIndex];
@@ -321,12 +320,12 @@ contract P2PMarket is IMarket {
         emit AskVolumeUpdated(askIndex, ask.volume);
     }
 
-    function changeUsername(string memory username) external isParticipant {
+    function changeUsername(string memory username) external isApproved {
         participants[msg.sender].username = username;
         emit UsernameChanged(msg.sender);
     }
 
-    function changeAvatarUrl(string memory avatarUrl) external isParticipant {
+    function changeAvatarUrl(string memory avatarUrl) external isApproved {
         participants[msg.sender].avatarUrl = avatarUrl;
         emit AvatarUrlChanged(msg.sender);
     }
