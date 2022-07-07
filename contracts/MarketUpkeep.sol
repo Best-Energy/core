@@ -13,7 +13,7 @@ contract MarketUpkeep is KeeperCompatibleInterface {
     constructor(address marketContractAddress, IMarket.Stage initStage) {
         times[IMarket.Stage.ASK] = 60;
         times[IMarket.Stage.BUY] = 60;
-        times[IMarket.Stage.SETTELMENT] = 60;
+        times[IMarket.Stage.SETTLEMENT] = 60;
         times[IMarket.Stage.INACTIVE] = 60;
         market = IMarket(marketContractAddress);
         lastTimeStamp = block.timestamp;
