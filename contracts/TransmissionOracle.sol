@@ -35,7 +35,7 @@ contract TransmissionOracle {
 
     modifier onlyInRange(uint8 loc1, uint8 loc2) {
         require(
-            loc1 <= locationsCount && loc2 <= locationsCount,
+            loc1 < locationsCount && loc2 < locationsCount,
             "Locations outside of range"
         );
         _;
