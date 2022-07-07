@@ -6,6 +6,7 @@ import "./IMarket.sol";
 import "./MarketUpkeep.sol";
 import "./CollateralOracle.sol";
 import "./IdentityOracle.sol";
+import "./TransmissionOracle.sol";
 
 contract P2PMarket is IMarket {
     struct Ask {
@@ -42,6 +43,7 @@ contract P2PMarket is IMarket {
     MarketUpkeep public upkeeper;
     CollateralOracle public collateralOracle;
     IdentityOracle public identityOracle;
+    TransmissionOracle public transmissionOracle;
 
     Stage stage = Stage.INACTIVE;
     address private owner;
@@ -126,6 +128,7 @@ contract P2PMarket is IMarket {
         upkeeper = new MarketUpkeep(address(this), stage);
         collateralOracle = new CollateralOracle(address(this), msg.sender);
         identityOracle = new IdentityOracle(address(this), msg.sender);
+        transmissionOracle = new TransmissionOracle(address(this), msg.sender);
         emit OwnerSet(address(0), owner);
         emit Keeper(address(upkeeper));
     }
@@ -190,6 +193,22 @@ contract P2PMarket is IMarket {
         participants[publicKey].isApproved = true;
         participants[publicKey].locationGroup = locationGroup;
         emit ParticipantApproved(publicKey);
+    }
+
+    function getCostsTo(address participant) external view returns (uint256) {
+        return
+            getCostsBetween(
+                participants[msg.sender].locationGroup,
+                participants[participant].locationGroup
+            );
+    }
+
+    function getCostsBetween(uint8 loc1, uint8 loc2)
+        public
+        view
+        returns (uint256)
+    {
+        return transmissionOracle.getTransmissionCosts(loc1, loc2);
     }
 
     function retractApproval(address publicKey) external override isOwner {
