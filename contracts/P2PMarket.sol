@@ -136,7 +136,7 @@ contract P2PMarket is IMarket {
     /**
      * @dev Set current stage of the market
      */
-    function setStage(Stage _stage) public override isUpkeeper {
+    function setStage(Stage _stage) private {
         stage = _stage;
         emit StageChanged(stage);
     }
@@ -234,13 +234,36 @@ contract P2PMarket is IMarket {
         payable(msg.sender).transfer(amount);
     }
 
-    function reset() external override isUpkeeper {
+    function changeStage() external override isUpkeeper {
+        if (stage == Stage.ASK) {
+            setStage(Stage.BUY);
+            return;
+        }
+        if (stage == Stage.BUY) {
+            startSettlement();
+            return;
+        }
+
+        if (stage == Stage.SETTLEMENT) {
+            setStage(Stage.INACTIVE);
+            return;
+        }
+
+        reset();
+    }
+
+    function startSettlement() private {
+        setStage(Stage.SETTLEMENT);
+        collateralOracle.invokeOracle();
+        transmissionOracle.refreshCosts();
+    }
+
+    function reset() private {
         delete asks;
         delete receipts;
-        stage = Stage.ASK;
         iteration++;
+        setStage(Stage.ASK);
         emit ResetEvent();
-        emit StageChanged(Stage.ASK);
     }
 
     function sendAsk(uint256 price, uint256 volume)

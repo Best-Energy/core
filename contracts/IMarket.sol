@@ -5,15 +5,13 @@ interface IMarket {
     enum Stage {
         ASK,
         BUY,
-        SETTELMENT,
+        SETTLEMENT,
         INACTIVE
     }
 
-    function setStage(Stage _stage) external;
+    function changeStage() external;
 
     function getStage() external view returns (Stage);
-
-    function reset() external;
 
     function setMarketPrice(uint256 _price) external;
 

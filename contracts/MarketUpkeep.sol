@@ -46,14 +46,6 @@ contract MarketUpkeep is KeeperCompatibleInterface {
         lastTimeStamp = block.timestamp;
         IMarket.Stage stage = market.getStage();
         interval = times[stage];
-        if (stage == IMarket.Stage.ASK) {
-            market.setStage(IMarket.Stage.BUY);
-        } else if (stage == IMarket.Stage.BUY) {
-            market.setStage(IMarket.Stage.SETTELMENT);
-        } else if (stage == IMarket.Stage.SETTELMENT) {
-            market.setStage(IMarket.Stage.INACTIVE);
-        } else {
-            market.reset();
-        }
+        market.changeStage();
     }
 }
