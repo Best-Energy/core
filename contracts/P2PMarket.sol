@@ -211,7 +211,11 @@ contract P2PMarket is IMarket {
         return transmissionOracle.getTransmissionCosts(loc1, loc2);
     }
 
-    function retractApproval(address publicKey) external override isOwner {
+    function retractApproval(address publicKey)
+        external
+        override
+        onlyIdentityOracle
+    {
         participants[publicKey].isApproved = false;
         emit ParticipantRemoved(publicKey);
     }
