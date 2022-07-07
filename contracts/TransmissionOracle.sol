@@ -67,6 +67,10 @@ contract TransmissionOracle {
         onlyInRange(loc1, loc2)
         returns (uint256)
     {
+        if (loc1 == loc2) {
+            return sameLocationCost;
+        }
+
         (uint8 l1, uint8 l2) = orderLocations(loc1, loc2);
         return transmissionCosts[l1][l2];
     }
