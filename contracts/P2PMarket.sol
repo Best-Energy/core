@@ -179,6 +179,7 @@ contract P2PMarket is IMarket {
         participant.username = username;
         participant.avatarUrl = avatarUrl;
         participant.renewable = renewable;
+        participant.isValue = true;
         identityOracle.requestApproval(msg.sender);
     }
 
