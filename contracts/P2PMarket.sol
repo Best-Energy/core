@@ -291,7 +291,7 @@ contract P2PMarket is IMarket {
             Ask(msg.sender, price, volume, participants[msg.sender].renewable)
         );
         uint256 askIndex = asks.length - 1;
-        hasAsk[iteration][msg.sender] == true;
+        hasAsk[iteration][msg.sender] = true;
         askIndicies[iteration][msg.sender] = askIndex;
         emit AskAdded(askIndex);
         return askIndex;
