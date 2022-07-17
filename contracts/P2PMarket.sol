@@ -47,6 +47,7 @@ contract P2PMarket is IMarket {
 
     Stage stage = Stage.INACTIVE;
     address private owner;
+    address[] public participantAddresses;
     mapping(address => Participant) private participants;
     Ask[] private asks;
     Receipt[] private receipts;
@@ -61,13 +62,13 @@ contract P2PMarket is IMarket {
     event ParticipantApproved(address indexed participant);
     event ParticipantRemoved(address indexed participant);
     event AskAdded(uint256 indexed askIndex);
-    event AskPriceUpdated(uint256 indexed askIndex, uint256 newPrice);
-    event AskVolumeUpdated(uint256 indexed askIndex, uint256 newVolume);
+    // event AskPriceUpdated(uint256 indexed askIndex, uint256 newPrice);
+    // event AskVolumeUpdated(uint256 indexed askIndex, uint256 newVolume);
     event AskBought(uint256 indexed receiptIndex);
     event ResetEvent();
     event StageChanged(Stage newStage);
-    event UsernameChanged(address indexed participant);
-    event AvatarUrlChanged(address indexed participant);
+    // event UsernameChanged(address indexed participant);
+    // event AvatarUrlChanged(address indexed participant);
     event Keeper(address keeper);
     event DepositDeducted(
         address indexed participant,
@@ -165,6 +166,23 @@ contract P2PMarket is IMarket {
         return participants[adr];
     }
 
+    
+
+    function getParticipants()
+        public
+        view
+        returns (Participant[] memory)
+    {
+        Participant[] memory mParticipants = new Participant[](participantAddresses.length);
+
+        for(uint i=0; i<participantAddresses.length; i++)
+        {
+            mParticipants[i] = participants[participantAddresses[i]];
+        }
+
+        return mParticipants;
+    }
+
     function amParticipant() external view returns (bool) {
         return participants[msg.sender].isValue;
     }
@@ -194,6 +212,7 @@ contract P2PMarket is IMarket {
         );
         participants[publicKey].isApproved = true;
         participants[publicKey].locationGroup = locationGroup;
+        participantAddresses.push(publicKey);
         emit ParticipantApproved(publicKey);
     }
 
@@ -341,54 +360,54 @@ contract P2PMarket is IMarket {
         emit AskBought(receipts.length - 1);
     }
 
-    function updateAskPrice(uint256 askIndex, uint256 price)
-        external
-        isApproved
-        canAsk
-    {
-        Ask storage ask = asks[askIndex];
-        require(ask.seller == msg.sender, "You are not the seller of this ask");
-        ask.price = price;
-        emit AskPriceUpdated(askIndex, price);
-    }
+    // function updateAskPrice(uint256 askIndex, uint256 price)
+    //     external
+    //     isApproved
+    //     canAsk
+    // {
+    //     Ask storage ask = asks[askIndex];
+    //     require(ask.seller == msg.sender, "You are not the seller of this ask");
+    //     ask.price = price;
+    //     emit AskPriceUpdated(askIndex, price);
+    // }
 
-    function increaseAskVolume(uint256 volume) external isApproved canAsk {
-        require(hasAsk[iteration][msg.sender], "You don't have an ask active");
-        uint256 askIndex = askIndicies[iteration][msg.sender];
-        Ask storage ask = asks[askIndex];
-        require(ask.seller == msg.sender, "You are not the seller of this ask");
-        uint256 newVolume = ask.volume + volume;
-        uint256 collateral = calculateCollateral(newVolume);
-        require(
-            participants[msg.sender].deposit >= collateral,
-            "Insufficient collateral"
-        );
-        ask.volume = newVolume;
-        emit AskVolumeUpdated(askIndex, ask.volume);
-    }
+    // function increaseAskVolume(uint256 volume) external isApproved canAsk {
+    //     require(hasAsk[iteration][msg.sender], "You don't have an ask active");
+    //     uint256 askIndex = askIndicies[iteration][msg.sender];
+    //     Ask storage ask = asks[askIndex];
+    //     require(ask.seller == msg.sender, "You are not the seller of this ask");
+    //     uint256 newVolume = ask.volume + volume;
+    //     uint256 collateral = calculateCollateral(newVolume);
+    //     require(
+    //         participants[msg.sender].deposit >= collateral,
+    //         "Insufficient collateral"
+    //     );
+    //     ask.volume = newVolume;
+    //     emit AskVolumeUpdated(askIndex, ask.volume);
+    // }
 
-    function decreaseAskVolume(uint256 volume) external isApproved canAsk {
-        require(hasAsk[iteration][msg.sender], "You don't have an ask active");
-        uint256 askIndex = askIndicies[iteration][msg.sender];
-        Ask storage ask = asks[askIndex];
-        require(ask.seller == msg.sender, "You are not the seller of this ask");
-        require(
-            ask.volume >= volume,
-            "Cannot decrease volume more than current volume"
-        );
-        ask.volume -= volume;
-        emit AskVolumeUpdated(askIndex, ask.volume);
-    }
+    // function decreaseAskVolume(uint256 volume) external isApproved canAsk {
+    //     require(hasAsk[iteration][msg.sender], "You don't have an ask active");
+    //     uint256 askIndex = askIndicies[iteration][msg.sender];
+    //     Ask storage ask = asks[askIndex];
+    //     require(ask.seller == msg.sender, "You are not the seller of this ask");
+    //     require(
+    //         ask.volume >= volume,
+    //         "Cannot decrease volume more than current volume"
+    //     );
+    //     ask.volume -= volume;
+    //     emit AskVolumeUpdated(askIndex, ask.volume);
+    // }
 
-    function changeUsername(string memory username) external isApproved {
-        participants[msg.sender].username = username;
-        emit UsernameChanged(msg.sender);
-    }
+    // function changeUsername(string memory username) external isApproved {
+    //     participants[msg.sender].username = username;
+    //     emit UsernameChanged(msg.sender);
+    // }
 
-    function changeAvatarUrl(string memory avatarUrl) external isApproved {
-        participants[msg.sender].avatarUrl = avatarUrl;
-        emit AvatarUrlChanged(msg.sender);
-    }
+    // function changeAvatarUrl(string memory avatarUrl) external isApproved {
+    //     participants[msg.sender].avatarUrl = avatarUrl;
+    //     emit AvatarUrlChanged(msg.sender);
+    // }
 
     function getReceipts() external view returns (Receipt[] memory) {
         return receipts;
