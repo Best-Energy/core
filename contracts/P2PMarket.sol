@@ -360,6 +360,8 @@ contract P2PMarket is IMarket {
         emit AskBought(receipts.length - 1);
     }
 
+//------------Additional Modification Functionalities for Future-----------------------
+
     // function updateAskPrice(uint256 askIndex, uint256 price)
     //     external
     //     isApproved
@@ -408,6 +410,7 @@ contract P2PMarket is IMarket {
     //     participants[msg.sender].avatarUrl = avatarUrl;
     //     emit AvatarUrlChanged(msg.sender);
     // }
+//------------------------------------------------------------------------------
 
     function getReceipts() external view returns (Receipt[] memory) {
         return receipts;
