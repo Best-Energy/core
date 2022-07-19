@@ -62,13 +62,10 @@ contract P2PMarket is IMarket {
     event ParticipantApproved(address indexed participant);
     event ParticipantRemoved(address indexed participant);
     event AskAdded(uint256 indexed askIndex);
-    // event AskPriceUpdated(uint256 indexed askIndex, uint256 newPrice);
-    // event AskVolumeUpdated(uint256 indexed askIndex, uint256 newVolume);
     event AskBought(uint256 indexed receiptIndex);
     event ResetEvent();
     event StageChanged(Stage newStage);
-    // event UsernameChanged(address indexed participant);
-    // event AvatarUrlChanged(address indexed participant);
+
     event Keeper(address keeper);
     event DepositDeducted(
         address indexed participant,
@@ -361,7 +358,12 @@ contract P2PMarket is IMarket {
     }
 
 //------------Additional Modification Functionalities for Future-----------------------
+    // event AskPriceUpdated(uint256 indexed askIndex, uint256 newPrice);
+    // event AskVolumeUpdated(uint256 indexed askIndex, uint256 newVolume);
+    // event UsernameChanged(address indexed participant);
+    // event AvatarUrlChanged(address indexed participant);
 
+    
     // function updateAskPrice(uint256 askIndex, uint256 price)
     //     external
     //     isApproved
